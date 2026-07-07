@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aneya Abacus Placement Portal | Katraj, Pune</title>
+    <style>
+        body {
+            background-color: #165430; font-family: 'Arial', sans-serif; margin: 0;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #333;
+            user-select: none; -webkit-user-select: none;
+        }
+        .card {
+            background-color: #ffffff; padding: 30px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 90%; max-width: 450px;
+        }
+        #examSection {
+            display: none; background-color: #ffffff; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 95%; max-width: 1000px; overflow: hidden;
+            transition: filter 0.3s;
+        }
+        #instructionSection, #resultSection { display: none; width: 90%; max-width: 500px; }
+        
+        #countdownOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #165430; color: #f36621; font-size: 150px; font-weight: bold;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal-content { background-color: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
+
+        #camera-container {
+            display: none; position: fixed; bottom: 20px; right: 20px;
+            width: 130px; height: 130px; border-radius: 50%; overflow: hidden;
+            border: 4px solid #f36621; box-shadow: 0 8px 20px rgba(0,0,0,0.4); z-index: 1500; background-color: #000;
+        }
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .recording-dot { position: absolute; top: 10px; right: 45px; width: 12px; height: 12px; background-color: red; border-radius: 50%; animation: pulse 1.5s infinite; z-index: 1501; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .rec-text { position: absolute; top: 8px; right: 15px; color: white; font-size: 10px; font-weight: bold; z-index: 1501; }
+
+        .exam-layout { display: flex; flex-direction: row; }
+        .left-panel { flex: 2; padding: 30px; display: flex; flex-direction: column; justify-content: center;}
+        .right-panel { flex: 1; background-color: #f8f9fa; border-left: 2px solid #e0e0e0; padding: 30px; display: flex; flex-direction: column; }
+        h2 { color: #165430; margin-bottom: 5px; }
+        h3 { margin-top: 0; color: #165430; border-bottom: 2px solid #165430; padding-bottom: 10px; }
+        ul.instructions-list { color: #555; line-height: 1.6; font-size: 14px; margin-bottom: 20px; text-align: left; }
+        
+        input { width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; text-align: center; }
+        
+        button { border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; }
+        button:disabled { background-color: #ccc !important; cursor: not-allowed; }
+        
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background-color: #165430; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; width: 100%; box-sizing: border-box;}
+        .timer { font-size: 20px; font-weight: bold; color: #f36621; }
+        
+        #questionText { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 30px; color: #333; line-height: 1.4; min-height: 70px;}
+        
+        /* MCQ Grid Styling */
+        .mcq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 450px; margin: 0 auto 30px auto; }
+        .mcq-btn { background: #f8f9fa; border: 2px solid #e0e0e0; padding: 15px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #333; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .mcq-btn:hover { border-color: #f36621; }
+        .mcq-btn.selected { background: #f36621; color: white; border-color: #f36621; }
+
+        /* Navigation Buttons Styling */
+        .nav-buttons { display: flex; justify-content: space-between; gap: 10px; width: 100%; max-width: 450px; margin: 0 auto; }
+        .nav-buttons button { flex: 1; padding: 12px 5px; font-size: 14px; background-color: #555; }
+        .nav-buttons .btn-review { background-color: #9b59b6; } 
+
+        /* Palette Grid Styling */
+        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; flex-grow: 1; align-content: start; }
+        .grid-btn { background-color: #e0e0e0; color: #555; border: 2px solid #ccc; padding: 10px 0; font-size: 14px; border-radius: 6px; cursor: pointer; }
+        .grid-btn.answered { background-color: #165430; color: white; border-color: #165430; }
+        .grid-btn.review { background-color: #9b59b6; color: white; border-color: #9b59b6; }
+        .grid-btn.current { border-color: #f36621; font-weight: bold; box-shadow: 0 0 5px rgba(243,102,33,0.5); }
+        
+        .submit-btn { background-color: #f36621; width: 100%; margin-top: auto; }
+        .score-display { font-size: 48px; font-weight: bold; color: #f36621; margin: 15px 0; }
+        
+        .summary-box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #eee; text-align: left; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }
+
+        @media (max-width: 768px) {
+            .exam-layout { flex-direction: column; }
+            .right-panel { border-left: none; border-top: 2px solid #e0e0e0; padding: 20px; }
+            #camera-container { width: 90px; height: 90px; bottom: 10px; right: 10px; }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;" oncopy="return false;" onpaste="return false;">
+
+    <script>
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123) return false; 
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; 
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; 
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; 
+        }
+    </script>
+
+    <div id="camera-container">
+        <div class="recording-dot"></div>
+        <div class="rec-text">REC</div>
+        <video id="webcam" autoplay playsinline muted></video>
+    </div>
+    <canvas id="securityCanvas" width="50" height="50" style="display:none;"></canvas>
+
+    <div id="signupSection" class="card">
+        <h2>Aneya Abacus Placement Portal<br><span style="font-size: 18px; color: #f36621;">Student Registration</span></h2>
+        <p style="color:#555; font-size:14px;">Please enter the student's details to begin.</p>
+        <input type="text" id="nameInput" placeholder="Student Full Name" required>
+        <input type="number" id="mobileInput" placeholder="Parent Mobile Number" required>
+        <input type="email" id="emailInput" placeholder="Parent Email ID" required>
+        
+        <button id="btnSignup" onclick="registerStudent()" style="background-color: #165430; width: 100%; margin-top: 10px;">Sign Up & Proceed</button>
+        <p id="message" style="color: red; margin-top: 15px; display: none;"></p>
+    </div>
+
+    <div id="instructionSection" class="card">
+        <h2>Welcome, <span id="welcomeName" style="color: #f36621;">Student</span>!</h2>
+        <ul class="instructions-list">
+            <li><b>Duration:</b> You have a strict <b>10-minute</b> time limit to complete the 20-question aptitude assessment.</li>
+            <li><b>Tracking:</b> Use the Question Palette to navigate. Answered questions will turn <b>Green</b>. Use "Mark for Review" to flag questions in <b>Purple</b>.</li>
+            <li><b style="color:red;">Academic Integrity:</b> This exam is strictly proctored. Camera access is mandatory. Any attempt to switch tabs, minimize the browser, or obstruct the lens will instantly flag a security violation.</li>
+            <li><b>Submission:</b> Final results and level placement will be instantly emailed to your registered parent.</li>
+        </ul>
+        <button id="fetchBtn" onclick="requestCameraAndStart()" style="background-color: #f36621; width: 100%;">Start Aptitude Test</button>
+        <p id="instMsg" style="color: red; margin-top: 15px; display: none;"></p>
+    </div>
+
+    <div id="countdownOverlay">3</div>
+    
+    <div id="securityModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: red;">⚠️ Camera Obstructed ⚠️</h3>
+            <p style="color: #333;">Your camera feed is blocked or paused. The exam is frozen until your face is clearly visible.</p>
+        </div>
+    </div>
+
+    <div id="tabModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: red;">⚠️ SECURITY WARNING ⚠️</h3>
+            <p style="color: #333;">Tab switching or minimizing the browser has been detected. This activity is logged.</p>
+            <button onclick="document.getElementById('tabModal').style.display='none'" style="background-color: #165430; width: 100%; margin-top: 15px;">I Understand</button>
+        </div>
+    </div>
+
+    <div id="submitModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #165430;">Confirm Submission</h3>
+            <div id="submissionStats" class="summary-box"></div>
+            <p style="color: #555; font-size: 14px; line-height: 1.5; margin-bottom: 0;">Are you sure you want to finalize and submit? Answers cannot be modified after this.</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button onclick="closeSubmitModal()" style="background-color: #fff; color: #333; border: 2px solid #ccc; width: 45%;">Cancel</button>
+                <button onclick="gradeExam()" style="background-color: #f36621; width: 45%;">Yes, Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="examSection">
+        <div class="exam-layout">
+            <div class="left-panel">
+                <div class="header-bar">
+                    <span id="studentNameDisplay">Student</span>
+                    <span class="timer" id="timerDisplay">10:00</span>
+                </div>
+                <h4 id="currentQInfo" style="color:#555; margin-bottom:5px;">Question 1</h4>
+                
+                <div id="questionText"></div>
+                
+                <div id="mcqContainer" class="mcq-grid"></div>
+
+                <div class="nav-buttons">
+                    <button onclick="prevQuestion()">Previous</button>
+                    <button id="btnReview" class="btn-review" onclick="toggleReview()">Mark for Review</button>
+                    <button onclick="nextQuestion()">Next</button>
+                </div>
+            </div>
+            <div class="right-panel">
+                <h3>Question Palette</h3>
+                <div class="grid-container" id="qGrid"></div>
+                <button id="submitExamBtn" class="submit-btn" onclick="showSubmitModal()">Submit Exam</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="resultSection" class="card">
+        <h2 style="margin-top: 0; color: #165430;">Exam Complete!</h2>
+        <div class="score-display" id="finalScoreDisplay">0 / 20</div>
+        
+        <div class="summary-box" style="text-align: center;">
+            <p style="color: #555; font-size: 14px; margin-bottom: 5px;">Allocated Level:</p>
+            <h3 id="resultLevelDisplay" style="color: #f36621; margin: 0; font-size: 24px;"></h3>
+        </div>
+
+        <p style="color: #555; font-weight: bold; margin-bottom: 5px;">Time Taken: <span id="finalTimeDisplay" style="color: #165430;"></span></p>
+        <p style="color: #165430; font-weight: bold; font-size: 14px;">Your results have been emailed to your parents!</p>
+        <button onclick="clearAndHome()" style="background-color: #f36621; width: 100%; margin-top: 15px;">Return to Home</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // ADD YOUR GOOGLE APPS SCRIPT URL HERE
+        // ==========================================
+        const API_URL = "https://script.google.com/macros/s/AKfycbwCu2qXa5mfPBfPQaGO0jZtT-810OTu7hBjjvvDfKctL1Tic8hTfgIGe_WFY0yf0W18ww/exec"; 
+        const SECRETS = "ANEYA_KATRAJ_2026_SECURE";
+        
+        let studentData = {}, currentIndex = 0, answers = {}, reviewState = {};
+        let timerInterval, securityInterval, examEndTime = 0, examStartTime = 0;
+        let examActive = false, tabSwitches = 0, videoStream = null;
+
+        // Hardcoded 20 Aptitude Questions based on criteria
+        const questions = [
+            { q: "What is the missing number? 10, 11, __, 13, 14", options: ["15", "12", "9", "21"], answer: "12" },
+            { q: "Which number comes right BEFORE 30?", options: ["31", "20", "29", "28"], answer: "29" },
+            { q: "What is the missing number in this backward countdown? 5, 4, 3, __, 1", options: ["6", "2", "0", "4"], answer: "2" },
+            { q: "Which of the following is the number 'Forty-Seven'?", options: ["74", "407", "47", "14"], answer: "47" },
+            { q: "Look at the numbers: 8, 2, 5, 9. Which one is the second number?", options: ["8", "5", "2", "9"], answer: "2" },
+            { q: "Which of these numbers is the BIGGEST?", options: ["14", "41", "24", "42"], answer: "42" },
+            { q: "Which of these numbers is the SMALLEST?", options: ["35", "29", "40", "53"], answer: "29" },
+            { q: "Which is greater: 12 or 21?", options: ["12", "21", "They are the same", "I don't know"], answer: "21" },
+            { q: "Which number fits exactly between 19 and 21?", options: ["18", "22", "20", "91"], answer: "20" },
+            { q: "If there are 3 birds on a branch, and all 3 fly away, how many are left?", options: ["3", "1", "0", "6"], answer: "0" },
+            { q: "What is 6 + 3?", options: ["8", "9", "10", "7"], answer: "9" },
+            { q: "What is 8 - 5?", options: ["3", "4", "2", "13"], answer: "3" },
+            { q: "What is 2 + 2 + 1?", options: ["4", "6", "5", "7"], answer: "5" },
+            { q: "What is 9 - 0?", options: ["0", "8", "10", "9"], answer: "9" },
+            { q: "🍎🍎🍎🍎 + 🍎🍎 = ?", options: ["5", "6", "7", "8"], answer: "6" },
+            { q: "What is 15 + 10?", options: ["16", "20", "25", "51"], answer: "25" },
+            { q: "What is 20 - 5?", options: ["10", "15", "25", "5"], answer: "15" },
+            { q: "Which number has a '7' in the tens place?", options: ["17", "7", "701", "71"], answer: "71" },
+            { q: "What is double of 5?", options: ["55", "15", "10", "6"], answer: "10" },
+            { q: "What is 11 + 11?", options: ["12", "22", "1111", "20"], answer: "22" }
+        ];
+
+        document.addEventListener("visibilitychange", () => {
+            if (examActive) {
+                if (document.visibilityState === 'hidden') {
+                    tabSwitches++; document.getElementById('tabModal').style.display = 'flex';
+                }
+            }
+        });
+
+        async function registerStudent() {
+            const name = document.getElementById('nameInput').value.trim();
+            const mobile = document.getElementById('mobileInput').value.trim();
+            const email = document.getElementById('emailInput').value.trim();
+            const msgBox = document.getElementById('message');
+            
+            if(!name || !mobile || !email) { msgBox.style.display="block"; msgBox.innerText="Fill all fields!"; return; }
+            
+            document.getElementById('btnSignup').disabled = true;
+            msgBox.style.display = "block"; msgBox.style.color = "#165430"; 
+            msgBox.innerText = "Registering student...";
+            
+            try {
+                // Save to Google Sheets
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "signup", name: name, mobile: mobile, email: email, apiKey: SECRETS }) });
+                
+                studentData = { name, mobile, email };
+                document.getElementById('signupSection').style.display = "none";
+                document.getElementById('welcomeName').innerText = name; 
+                document.getElementById('instructionSection').style.display = "block";
+            } catch(e) { 
+                msgBox.style.color="red"; msgBox.innerText = "Connection Error! Ensure you added the API URL in the code."; 
+                document.getElementById('btnSignup').disabled = false;
+            }
+        }
+
+        async function requestCameraAndStart() {
+            const btn = document.getElementById('fetchBtn'), msg = document.getElementById('instMsg');
+            btn.disabled = true; msg.style.display = "block"; msg.innerText = "Connecting secure camera...";
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                document.getElementById('webcam').srcObject = videoStream; 
+                document.getElementById('camera-container').style.display = "block";
+                startCountdown();
+            } catch (err) {
+                msg.style.color = "red"; 
+                msg.innerText = "Camera access denied! You must allow camera permissions in your browser settings."; 
+                btn.disabled = false;
+            }
+        }
+
+        function stopCamera() { if(videoStream) { videoStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-container').style.display = "none"; } }
+
+        function startCountdown() {
+            document.getElementById('instructionSection').style.display = "none";
+            const cEl = document.getElementById('countdownOverlay'); cEl.style.display = "flex"; let count = 3; cEl.innerText = count;
+            let interval = setInterval(() => { count--; if(count > 0) cEl.innerText = count; else if(count === 0) cEl.innerText = "GO!"; else { clearInterval(interval); cEl.style.display = "none"; startExam(); } }, 1000);
+        }
+
+        function startExam() {
+            examActive = true; document.getElementById('examSection').style.display = "block";
+            document.getElementById('studentNameDisplay').innerText = studentData.name;
+            
+            examStartTime = Date.now(); 
+            examEndTime = Date.now() + (10 * 60 * 1000); // 10 Minutes strict timer
+            
+            buildGrid(); loadQuestion(0);
+            timerInterval = setInterval(updateTimer, 1000);
+            securityInterval = setInterval(checkCameraSecurity, 2000);
+        }
+
+        function checkCameraSecurity() {
+            if (!examActive || !videoStream) return;
+            const videoEl = document.getElementById('webcam'), track = videoStream.getVideoTracks()[0];
+            const examUI = document.getElementById('examSection');
+            
+            let isBlocked = false;
+            if (!track || track.muted || track.readyState === 'ended' || videoEl.paused) { isBlocked = true; } 
+            
+            if (isBlocked) {
+                tabSwitches++; document.getElementById('securityModal').style.display = 'flex'; examUI.style.filter = "blur(30px)"; 
+            } else {
+                document.getElementById('securityModal').style.display = 'none'; examUI.style.filter = "blur(0px)"; 
+            }
+        }
+
+        function buildGrid() {
+            let html = ""; for(let i=0; i<questions.length; i++) html += `<button class="grid-btn" id="btn-q${i}" onclick="jumpToQuestion(${i})">${i + 1}</button>`;
+            document.getElementById('qGrid').innerHTML = html;
+        }
+
+        function updateGridUI() {
+            for(let i=0; i<questions.length; i++) {
+                let btn = document.getElementById(`btn-q${i}`); btn.className = "grid-btn";
+                if(answers[i] !== undefined) btn.classList.add('answered');
+                if(reviewState[i]) btn.classList.add('review'); 
+                if(i === currentIndex) btn.classList.add('current');
+            }
+        }
+
+        function loadQuestion(index) {
+            currentIndex = index; document.getElementById('currentQInfo').innerText = `Question ${index+1} of ${questions.length}`;
+            
+            document.getElementById('questionText').innerText = questions[index].q;
+            
+            let mcqHtml = "";
+            let currentAnswer = answers[index];
+            const labels = ['A', 'B', 'C', 'D'];
+            questions[index].options.forEach((opt, idx) => {
+                let isSelected = (currentAnswer !== undefined && currentAnswer == opt) ? "selected" : "";
+                mcqHtml += `<button class="mcq-btn ${isSelected}" onclick="selectOption('${opt}')">
+                                <span style="color:#888; font-size:16px; margin-right:8px;">${labels[idx]})</span> ${opt}
+                            </button>`;
+            });
+            document.getElementById('mcqContainer').innerHTML = mcqHtml;
+            document.getElementById('btnReview').innerText = reviewState[index] ? "Unmark" : "Mark for Review";
+            
+            updateGridUI();
+        }
+
+        function toggleReview() { reviewState[currentIndex] = !reviewState[currentIndex]; loadQuestion(currentIndex); }
+
+        function selectOption(val) {
+            answers[currentIndex] = val; loadQuestion(currentIndex); 
+            setTimeout(() => { 
+                if(currentIndex < questions.length - 1) loadQuestion(currentIndex + 1); else updateGridUI(); 
+            }, 300); 
+        }
+
+        function jumpToQuestion(i) { loadQuestion(i); }
+        function prevQuestion() { if(currentIndex > 0) loadQuestion(currentIndex - 1); }
+        function nextQuestion() { if(currentIndex < questions.length - 1) loadQuestion(currentIndex + 1); }
+
+        function updateTimer() {
+            let timeLeft = Math.max(0, Math.round((examEndTime - Date.now()) / 1000));
+            if(timeLeft <= 0) { 
+                clearInterval(timerInterval); closeSubmitModal(); gradeExam(); return;
+            }
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById('timerDisplay').innerText = `${m}:${s<10?'0'+s:s}`;
+        }
+
+        function showSubmitModal() { 
+            let total = questions.length; let attempted = Object.keys(answers).length; let skipped = total - attempted; let reviewed = 0;
+            for (let key in reviewState) { if (reviewState[key]) reviewed++; }
+            
+            document.getElementById('submissionStats').innerHTML = `
+                <div class="summary-row"><span style="color: #165430; font-weight: bold;">Attempted:</span> <span style="font-weight: bold;">${attempted}</span></div>
+                <div class="summary-row"><span style="color: #9b59b6; font-weight: bold;">Marked for Review:</span> <span style="font-weight: bold;">${reviewed}</span></div>
+                <div class="summary-row" style="margin-bottom: 0;"><span style="color: #555; font-weight: bold;">Skipped (Unanswered):</span> <span style="font-weight: bold;">${skipped}</span></div>
+            `;
+            document.getElementById('submitModal').style.display = "flex"; 
+        }
+        
+        function closeSubmitModal() { document.getElementById('submitModal').style.display = "none"; }
+
+        async function gradeExam() {
+            examActive = false; stopCamera(); clearInterval(timerInterval); clearInterval(securityInterval);
+            document.getElementById('submitModal').style.display = "none"; document.getElementById('examSection').style.display = "none";
+            document.getElementById('countdownOverlay').style.display = "flex"; document.getElementById('countdownOverlay').innerText = "Grading...";
+            
+            let totalSecs = Math.floor((Date.now() - examStartTime) / 1000);
+            if (totalSecs > 600) totalSecs = 600; // max 10 mins
+            let timeStr = Math.floor(totalSecs / 60) + "m " + (totalSecs % 60) + "s";
+
+            // Calculate Score
+            let score = 0;
+            for(let i=0; i<questions.length; i++) {
+                if(answers[i] === questions[i].answer) score++;
+            }
+            
+            // Placement Logic
+            let allocatedLevel = "";
+            if(score <= 7) allocatedLevel = "Junior (Jr)";
+            else if(score <= 14) allocatedLevel = "Senior (Sr)";
+            else allocatedLevel = "Level 0";
+            
+            try {
+                // Post to Google Apps Script
+                await fetch(API_URL, { 
+                    method: 'POST', body: JSON.stringify({ 
+                        action: "submitExam", name: studentData.name, mobile: studentData.mobile,
+                        email: studentData.email, score: score, level: allocatedLevel, 
+                        apiKey: SECRETS, tabSwitches: tabSwitches, timeTaken: timeStr 
+                    }) 
+                });
+            } catch(e) {
+                console.log("Error saving results to sheet.", e);
+            }
+            
+            document.getElementById('countdownOverlay').style.display = "none"; 
+            document.getElementById('resultSection').style.display = "block";
+            
+            document.getElementById('resultLevelDisplay').innerText = allocatedLevel;
+            document.getElementById('finalScoreDisplay').innerText = score + " / " + questions.length;
+            document.getElementById('finalTimeDisplay').innerText = timeStr; 
+        }
+
+        function clearAndHome() { stopCamera(); location.reload(); }
+    </script>
+</body>
+</html>
