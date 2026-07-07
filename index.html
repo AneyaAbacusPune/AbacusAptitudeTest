@@ -113,7 +113,7 @@
         <p style="color:#555; font-size:14px;">Please enter the student's details to begin.</p>
         <input type="text" id="nameInput" placeholder="Student Full Name" required>
         <input type="text" id="classInput" placeholder="Class / Standard (e.g., 2nd Grade)" required>
-        <input type="number" id="mobileInput" placeholder="Parent Mobile Number" required>
+        <input type="number" id="mobileInput" placeholder="Parent Mobile Number (10 Digits)" required>
         <input type="email" id="emailInput" placeholder="Parent Email ID" required>
         
         <button id="btnSignup" onclick="registerStudent()" style="background-color: #f36621; width: 100%; margin-top: 10px;">Sign Up & Proceed</button>
@@ -213,89 +213,86 @@
         let timerInterval, securityInterval, examEndTime = 0, examStartTime = 0;
         let examActive = false, hasRegistered = false, tabSwitches = 0, videoStream = null;
 
+        // DEBUGGER TRAP
+        setInterval(function() {
+            (function() { return false; }).constructor('debugger')();
+        }, 1000);
+
         const questions = [
-            { q: "What is the missing number? 10, 11, __, 13, 14", options: ["15", "12", "9", "21"], answer: "12" },
-            { q: "Which number comes right BEFORE 30?", options: ["31", "20", "29", "28"], answer: "29" },
-            { q: "What is the missing number in this backward countdown? 5, 4, 3, __, 1", options: ["6", "2", "0", "4"], answer: "2" },
-            { q: "Which of the following is the number 'Forty-Seven'?", options: ["74", "407", "47", "14"], answer: "47" },
-            { q: "Look at the numbers: 8, 2, 5, 9. Which one is the second number?", options: ["8", "5", "2", "9"], answer: "2" },
-            { q: "Which of these numbers is the BIGGEST?", options: ["14", "41", "24", "42"], answer: "42" },
-            { q: "Which of these numbers is the SMALLEST?", options: ["35", "29", "40", "53"], answer: "29" },
-            { q: "Which is greater: 12 or 21?", options: ["12", "21", "They are the same", "I don't know"], answer: "21" },
-            { q: "Which number fits exactly between 19 and 21?", options: ["18", "22", "20", "91"], answer: "20" },
-            { q: "If there are 3 birds on a branch, and all 3 fly away, how many are left?", options: ["3", "1", "0", "6"], answer: "0" },
-            { q: "What is 6 + 3?", options: ["8", "9", "10", "7"], answer: "9" },
-            { q: "What is 8 - 5?", options: ["3", "4", "2", "13"], answer: "3" },
-            { q: "What is 2 + 2 + 1?", options: ["4", "6", "5", "7"], answer: "5" },
-            { q: "What is 9 - 0?", options: ["0", "8", "10", "9"], answer: "9" },
-            { q: "🍎🍎🍎🍎 + 🍎🍎 = ?", options: ["5", "6", "7", "8"], answer: "6" },
-            { q: "What is 15 + 10?", options: ["16", "20", "25", "51"], answer: "25" },
-            { q: "What is 20 - 5?", options: ["10", "15", "25", "5"], answer: "15" },
-            { q: "Which number has a '7' in the tens place?", options: ["17", "7", "701", "71"], answer: "71" },
-            { q: "What is double of 5?", options: ["55", "15", "10", "6"], answer: "10" },
-            { q: "What is 11 + 11?", options: ["12", "22", "1111", "20"], answer: "22" }
+            { q: "What is the missing number? 10, 11, __, 13, 14", options: ["15", "12", "9", "21"] },
+            { q: "Which number comes right BEFORE 30?", options: ["31", "20", "29", "28"] },
+            { q: "What is the missing number in this backward countdown? 5, 4, 3, __, 1", options: ["6", "2", "0", "4"] },
+            { q: "Which of the following is the number 'Forty-Seven'?", options: ["74", "407", "47", "14"] },
+            { q: "Look at the numbers: 8, 2, 5, 9. Which one is the second number?", options: ["8", "5", "2", "9"] },
+            { q: "Which of these numbers is the BIGGEST?", options: ["14", "41", "24", "42"] },
+            { q: "Which of these numbers is the SMALLEST?", options: ["35", "29", "40", "53"] },
+            { q: "Which is greater: 12 or 21?", options: ["12", "21", "They are the same", "I don't know"] },
+            { q: "Which number fits exactly between 19 and 21?", options: ["18", "22", "20", "91"] },
+            { q: "If there are 3 birds on a branch, and all 3 fly away, how many are left?", options: ["3", "1", "0", "6"] },
+            { q: "What is 6 + 3?", options: ["8", "9", "10", "7"] },
+            { q: "What is 8 - 5?", options: ["3", "4", "2", "13"] },
+            { q: "What is 2 + 2 + 1?", options: ["4", "6", "5", "7"] },
+            { q: "What is 9 - 0?", options: ["0", "8", "10", "9"] },
+            { q: "🍎🍎🍎🍎 + 🍎🍎 = ?", options: ["5", "6", "7", "8"] },
+            { q: "What is 15 + 10?", options: ["16", "20", "25", "51"] },
+            { q: "What is 20 - 5?", options: ["10", "15", "25", "5"] },
+            { q: "Which number has a '7' in the tens place?", options: ["17", "7", "701", "71"] },
+            { q: "What is double of 5?", options: ["55", "15", "10", "6"] },
+            { q: "What is 11 + 11?", options: ["12", "22", "1111", "20"] }
         ];
 
-        // UNIVERSAL ANTI-REFRESH LOGIC
+        // DEVICE LOCKDOWN & ENCRYPTED LOCALSTORAGE
         window.onload = function() {
-            const savedState = localStorage.getItem('abacusExamState');
-            if(savedState) {
-                const state = JSON.parse(savedState);
-                
-                // If they registered but haven't started the timer yet
-                if(state.hasRegistered && !state.examActive) {
-                    hasRegistered = true;
-                    studentData = state.studentData;
-                    
-                    document.getElementById('signupSection').style.display = "none";
-                    document.getElementById('welcomeName').innerText = studentData.name;
-                    document.getElementById('instructionSection').style.display = "block";
-                } 
-                // If they registered AND the exam timer was running
-                else if(state.examActive) {
-                    hasRegistered = true;
-                    studentData = state.studentData;
-                    answers = state.answers || {};
-                    reviewState = state.reviewState || {};
-                    examEndTime = state.examEndTime;
-                    examStartTime = state.examStartTime;
-                    tabSwitches = state.tabSwitches || 0;
-                    currentIndex = state.currentIndex || 0;
-                    examActive = true;
+            // Check if this device has already completed an exam
+            if(localStorage.getItem('abacusDeviceLock') === 'true') {
+                document.body.innerHTML = "<h2 style='color:white; text-align:center; font-family:Arial; margin-top:20%; padding:20px; line-height: 1.5;'>✅ Exam Already Submitted!<br><br><span style='font-size:18px; font-weight:normal;'>An assessment has already been completed on this device.<br>Please contact Aneya Abacus Center if you need assistance.</span></h2>";
+                return;
+            }
 
-                    // Auto-submit if time expired while they were refreshing/gone
-                    if (Date.now() >= examEndTime) {
-                        gradeExam();
-                        return;
+            const rawData = localStorage.getItem('abacusExamStateSecure');
+            if(rawData) {
+                try {
+                    const state = JSON.parse(atob(rawData)); // Decrypt
+                    if(state.hasRegistered && !state.examActive) {
+                        hasRegistered = true; studentData = state.studentData;
+                        document.getElementById('signupSection').style.display = "none";
+                        document.getElementById('welcomeName').innerText = studentData.name;
+                        document.getElementById('instructionSection').style.display = "block";
+                    } 
+                    else if(state.examActive) {
+                        hasRegistered = true; studentData = state.studentData;
+                        answers = state.answers || {}; reviewState = state.reviewState || {};
+                        examEndTime = state.examEndTime; examStartTime = state.examStartTime;
+                        tabSwitches = state.tabSwitches || 0; currentIndex = state.currentIndex || 0;
+                        examActive = true;
+
+                        if (Date.now() >= examEndTime) { gradeExam(); return; }
+                        document.getElementById('signupSection').style.display = "none";
+                        document.getElementById('instructionSection').style.display = "none";
+                        document.getElementById('countdownOverlay').style.display = "flex";
+                        document.getElementById('countText').innerText = "Resuming...";
+                        resumeCameraAndExam();
                     }
-
-                    document.getElementById('signupSection').style.display = "none";
-                    document.getElementById('instructionSection').style.display = "none";
-                    document.getElementById('countdownOverlay').style.display = "flex";
-                    document.getElementById('countText').innerText = "Resuming...";
-                    
-                    resumeCameraAndExam();
+                } catch(e) {
+                    localStorage.removeItem('abacusExamStateSecure');
                 }
             }
         };
 
         function persistData() {
-            localStorage.setItem('abacusExamState', JSON.stringify({
+            const payload = btoa(JSON.stringify({
                 hasRegistered, studentData, answers, reviewState, examEndTime, examStartTime, tabSwitches, examActive, currentIndex
             }));
+            localStorage.setItem('abacusExamStateSecure', payload);
         }
 
         document.addEventListener("visibilitychange", () => {
             if (examActive) {
                 if (document.visibilityState === 'hidden') {
-                    tabSwitches++; 
-                    persistData();
+                    tabSwitches++; persistData();
                     document.getElementById('tabModal').style.display = 'flex';
-                } else {
-                    // Check if time ran out while they were in another tab
-                    if (Date.now() >= examEndTime) {
-                        gradeExam();
-                    }
+                } else if (Date.now() >= examEndTime) {
+                    gradeExam();
                 }
             }
         });
@@ -307,7 +304,28 @@
             const email = document.getElementById('emailInput').value.trim();
             const msgBox = document.getElementById('message');
             
-            if(!name || !classStd || !mobile || !email) { msgBox.style.display="block"; msgBox.innerText="Fill all fields!"; return; }
+            // 1. Check if fields are empty
+            if(!name || !classStd || !mobile || !email) { 
+                msgBox.style.display="block"; msgBox.style.color="red"; 
+                msgBox.innerText="Fill all fields!"; 
+                return; 
+            }
+
+            // 2. Strict Indian Mobile Number Validation (Exactly 10 digits starting with 6,7,8,9)
+            const mobileRegex = /^[6-9]\d{9}$/;
+            if(!mobileRegex.test(mobile)) {
+                msgBox.style.display="block"; msgBox.style.color="red"; 
+                msgBox.innerText="Please enter a valid 10-digit Indian mobile number!"; 
+                return; 
+            }
+
+            // 3. Strict Email Validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if(!emailRegex.test(email)) {
+                msgBox.style.display="block"; msgBox.style.color="red"; 
+                msgBox.innerText="Please enter a valid email address format!"; 
+                return; 
+            }
             
             document.getElementById('btnSignup').disabled = true;
             msgBox.style.display = "block"; msgBox.style.color = "#165430"; 
@@ -325,7 +343,6 @@
                     return;
                 }
                 
-                // SAVE REGISTRATION STATE INSTANTLY
                 hasRegistered = true;
                 studentData = { name, classStd, mobile, email };
                 persistData(); 
@@ -393,7 +410,7 @@
             document.getElementById('studentNameDisplay').innerText = studentData.name;
             
             examStartTime = Date.now(); 
-            examEndTime = Date.now() + (10 * 60 * 1000); // 10 Minutes strict timer
+            examEndTime = Date.now() + (10 * 60 * 1000); 
             persistData();
             
             buildGrid(); loadQuestion(0);
@@ -408,12 +425,9 @@
             
             let isBlocked = false;
             
-            // Check if track is physically ended/muted
             if (!track || track.muted || track.readyState === 'ended' || videoEl.paused) { 
                 isBlocked = true; 
-            } 
-            // Check canvas for obstruction
-            else if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+            } else if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                 try {
                     const canvas = document.getElementById('securityCanvas'), ctx = canvas.getContext('2d');
                     ctx.drawImage(videoEl, 0, 0, 50, 50); let frame = ctx.getImageData(0, 0, 50, 50).data;
@@ -429,8 +443,7 @@
 
             if (isBlocked) {
                 if(document.getElementById('securityModal').style.display !== 'flex') {
-                    tabSwitches++; // Adds a warning to the final sheet
-                    persistData();
+                    tabSwitches++; persistData();
                 }
                 document.getElementById('securityModal').style.display = 'flex'; 
                 examUI.style.filter = "blur(30px)"; 
@@ -479,12 +492,7 @@
 
         function selectOption(val) {
             answers[currentIndex] = val; 
-            
-            // Remove 'mark for review' flag once answered
-            if(reviewState[currentIndex]) {
-                reviewState[currentIndex] = false;
-            }
-            
+            if(reviewState[currentIndex]) { reviewState[currentIndex] = false; }
             loadQuestion(currentIndex); 
             setTimeout(() => { 
                 if(currentIndex < questions.length - 1) loadQuestion(currentIndex + 1); else updateGridUI(); 
@@ -524,44 +532,40 @@
             document.getElementById('countdownOverlay').style.display = "flex"; document.getElementById('countText').innerText = "Grading...";
             
             let totalSecs = Math.floor((Date.now() - examStartTime) / 1000);
-            if (totalSecs > 600) totalSecs = 600; // max 10 mins
+            if (totalSecs > 600) totalSecs = 600; 
             let timeStr = Math.floor(totalSecs / 60) + "m " + (totalSecs % 60) + "s";
-
-            // Calculate Score
-            let score = 0;
-            for(let i=0; i<questions.length; i++) {
-                if(answers[i] === questions[i].answer) score++;
-            }
-            
-            // PLACEMENT LOGIC CRITERIA
-            let allocatedLevel = "";
-            if(score <= 10) allocatedLevel = "Junior (Jr)";
-            else if(score <= 17) allocatedLevel = "Senior (Sr)";
-            else allocatedLevel = "Level 0";
             
             try {
-                // Post to Google Apps Script
-                await fetch(API_URL, { 
+                let response = await fetch(API_URL, { 
                     method: 'POST', body: JSON.stringify({ 
                         action: "submitExam", name: studentData.name, studentClass: studentData.classStd, mobile: studentData.mobile,
-                        email: studentData.email, score: score, level: allocatedLevel, 
+                        email: studentData.email, answers: answers,  
                         apiKey: SECRETS, tabSwitches: tabSwitches, timeTaken: timeStr 
                     }) 
                 });
+                
+                let resultData = await response.json();
+                
+                if (resultData.success) {
+                    // PERMANENTLY LOCK THIS DEVICE FROM RETAKING THE EXAM
+                    localStorage.setItem('abacusDeviceLock', 'true');
+                    
+                    localStorage.removeItem('abacusExamStateSecure'); 
+                    document.getElementById('countdownOverlay').style.display = "none"; 
+                    document.getElementById('resultSection').style.display = "block";
+                    
+                    document.getElementById('resultLevelDisplay').innerText = resultData.level;
+                    document.getElementById('finalScoreDisplay').innerText = resultData.score + " / " + questions.length;
+                    document.getElementById('finalTimeDisplay').innerText = timeStr; 
+                }
+                
             } catch(e) {
                 console.log("Error saving results to sheet.", e);
+                document.getElementById('countText').innerText = "Network Error. Please take a screenshot.";
             }
-            
-            localStorage.removeItem('abacusExamState'); 
-            document.getElementById('countdownOverlay').style.display = "none"; 
-            document.getElementById('resultSection').style.display = "block";
-            
-            document.getElementById('resultLevelDisplay').innerText = allocatedLevel;
-            document.getElementById('finalScoreDisplay').innerText = score + " / " + questions.length;
-            document.getElementById('finalTimeDisplay').innerText = timeStr; 
         }
 
-        function clearAndHome() { stopCamera(); localStorage.removeItem('abacusExamState'); location.reload(); }
+        function clearAndHome() { stopCamera(); location.reload(); }
     </script>
 </body>
 </html>
