@@ -24,7 +24,7 @@
         #countdownOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: #165430; color: #f36621; font-size: 150px; font-weight: bold;
-            justify-content: center; align-items: center; z-index: 1000;
+            justify-content: center; align-items: center; z-index: 1000; flex-direction: column;
         }
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -112,10 +112,11 @@
         <h2>Aneya Abacus Placement Portal<br><span style="font-size: 18px; color: #f36621;">Student Registration</span></h2>
         <p style="color:#555; font-size:14px;">Please enter the student's details to begin.</p>
         <input type="text" id="nameInput" placeholder="Student Full Name" required>
+        <input type="text" id="classInput" placeholder="Class / Standard (e.g., 2nd Grade)" required>
         <input type="number" id="mobileInput" placeholder="Parent Mobile Number" required>
         <input type="email" id="emailInput" placeholder="Parent Email ID" required>
         
-        <button id="btnSignup" onclick="registerStudent()" style="background-color: #165430; width: 100%; margin-top: 10px;">Sign Up & Proceed</button>
+        <button id="btnSignup" onclick="registerStudent()" style="background-color: #f36621; width: 100%; margin-top: 10px;">Sign Up & Proceed</button>
         <p id="message" style="color: red; margin-top: 15px; display: none;"></p>
     </div>
 
@@ -123,20 +124,20 @@
         <h2>Welcome, <span id="welcomeName" style="color: #f36621;">Student</span>!</h2>
         <ul class="instructions-list">
             <li><b>Duration:</b> You have a strict <b>10-minute</b> time limit to complete the 20-question aptitude assessment.</li>
-            <li><b>Tracking:</b> Use the Question Palette to navigate. Answered questions will turn <b>Green</b>. Use "Mark for Review" to flag questions in <b>Purple</b>.</li>
-            <li><b style="color:red;">Academic Integrity:</b> This exam is strictly proctored. Camera access is mandatory. Any attempt to switch tabs, minimize the browser, or obstruct the lens will instantly flag a security violation.</li>
+            <li><b>Tracking:</b> Answered questions will turn <b>Green</b>. Use "Mark for Review" to flag questions in <b>Purple</b>.</li>
+            <li><b style="color:red;">Academic Integrity:</b> This exam is strictly proctored. Any attempt to switch tabs or obstruct the camera lens will record a security warning and freeze the exam.</li>
             <li><b>Submission:</b> Final results and level placement will be instantly emailed to your registered parent.</li>
         </ul>
         <button id="fetchBtn" onclick="requestCameraAndStart()" style="background-color: #f36621; width: 100%;">Start Aptitude Test</button>
         <p id="instMsg" style="color: red; margin-top: 15px; display: none;"></p>
     </div>
 
-    <div id="countdownOverlay">3</div>
+    <div id="countdownOverlay"><span id="countText">3</span></div>
     
     <div id="securityModal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0; color: red;">⚠️ Camera Obstructed ⚠️</h3>
-            <p style="color: #333;">Your camera feed is blocked or paused. The exam is frozen until your face is clearly visible.</p>
+            <p style="color: #333;">Your camera feed is blocked or paused. A security warning has been recorded. The exam is frozen until your face is clearly visible.</p>
         </div>
     </div>
 
@@ -205,14 +206,13 @@
         // ==========================================
         // ADD YOUR GOOGLE APPS SCRIPT URL HERE
         // ==========================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbwCu2qXa5mfPBfPQaGO0jZtT-810OTu7hBjjvvDfKctL1Tic8hTfgIGe_WFY0yf0W18ww/exec"; 
+        const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"; 
         const SECRETS = "ANEYA_KATRAJ_2026_SECURE";
         
         let studentData = {}, currentIndex = 0, answers = {}, reviewState = {};
         let timerInterval, securityInterval, examEndTime = 0, examStartTime = 0;
         let examActive = false, tabSwitches = 0, videoStream = null;
 
-        // Hardcoded 20 Aptitude Questions based on criteria
         const questions = [
             { q: "What is the missing number? 10, 11, __, 13, 14", options: ["15", "12", "9", "21"], answer: "12" },
             { q: "Which number comes right BEFORE 30?", options: ["31", "20", "29", "28"], answer: "29" },
@@ -236,31 +236,86 @@
             { q: "What is 11 + 11?", options: ["12", "22", "1111", "20"], answer: "22" }
         ];
 
+        // ANTI-REFRESH LOGIC
+        window.onload = function() {
+            const savedState = localStorage.getItem('abacusExamState');
+            if(savedState) {
+                const state = JSON.parse(savedState);
+                if(state.examActive) {
+                    studentData = state.studentData;
+                    answers = state.answers || {};
+                    reviewState = state.reviewState || {};
+                    examEndTime = state.examEndTime;
+                    examStartTime = state.examStartTime;
+                    tabSwitches = state.tabSwitches || 0;
+                    currentIndex = state.currentIndex || 0;
+                    examActive = true;
+
+                    // Auto-submit if time expired while they were refreshing/gone
+                    if (Date.now() >= examEndTime) {
+                        gradeExam();
+                        return;
+                    }
+
+                    document.getElementById('signupSection').style.display = "none";
+                    document.getElementById('instructionSection').style.display = "none";
+                    document.getElementById('countdownOverlay').style.display = "flex";
+                    document.getElementById('countText').innerText = "Resuming...";
+                    
+                    resumeCameraAndExam();
+                }
+            }
+        };
+
+        function persistData() {
+            if(examActive) {
+                localStorage.setItem('abacusExamState', JSON.stringify({
+                    studentData, answers, reviewState, examEndTime, examStartTime, tabSwitches, examActive, currentIndex
+                }));
+            }
+        }
+
         document.addEventListener("visibilitychange", () => {
             if (examActive) {
                 if (document.visibilityState === 'hidden') {
-                    tabSwitches++; document.getElementById('tabModal').style.display = 'flex';
+                    tabSwitches++; 
+                    persistData();
+                    document.getElementById('tabModal').style.display = 'flex';
+                } else {
+                    // Check if time ran out while they were in another tab
+                    if (Date.now() >= examEndTime) {
+                        gradeExam();
+                    }
                 }
             }
         });
 
         async function registerStudent() {
             const name = document.getElementById('nameInput').value.trim();
+            const classStd = document.getElementById('classInput').value.trim();
             const mobile = document.getElementById('mobileInput').value.trim();
             const email = document.getElementById('emailInput').value.trim();
             const msgBox = document.getElementById('message');
             
-            if(!name || !mobile || !email) { msgBox.style.display="block"; msgBox.innerText="Fill all fields!"; return; }
+            if(!name || !classStd || !mobile || !email) { msgBox.style.display="block"; msgBox.innerText="Fill all fields!"; return; }
             
             document.getElementById('btnSignup').disabled = true;
             msgBox.style.display = "block"; msgBox.style.color = "#165430"; 
             msgBox.innerText = "Registering student...";
             
             try {
-                // Save to Google Sheets
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "signup", name: name, mobile: mobile, email: email, apiKey: SECRETS }) });
+                let res = await fetch(API_URL, { 
+                    method: 'POST', body: JSON.stringify({ action: "signup", name: name, studentClass: classStd, mobile: mobile, email: email, apiKey: SECRETS }) 
+                });
+                let data = await res.json();
                 
-                studentData = { name, mobile, email };
+                if(!data.success) {
+                    msgBox.style.color = "red"; msgBox.innerText = data.message;
+                    document.getElementById('btnSignup').disabled = false;
+                    return;
+                }
+                
+                studentData = { name, classStd, mobile, email };
                 document.getElementById('signupSection').style.display = "none";
                 document.getElementById('welcomeName').innerText = name; 
                 document.getElementById('instructionSection').style.display = "block";
@@ -286,12 +341,37 @@
             }
         }
 
+        async function resumeCameraAndExam() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                document.getElementById('webcam').srcObject = videoStream; 
+                document.getElementById('camera-container').style.display = "block";
+                document.getElementById('countdownOverlay').style.display = "none";
+                
+                document.getElementById('examSection').style.display = "block";
+                document.getElementById('studentNameDisplay').innerText = studentData.name;
+                
+                buildGrid(); loadQuestion(currentIndex);
+                timerInterval = setInterval(updateTimer, 1000);
+                securityInterval = setInterval(checkCameraSecurity, 2000);
+            } catch (err) {
+                alert("Camera access is required to resume the exam! Please allow it and refresh.");
+            }
+        }
+
         function stopCamera() { if(videoStream) { videoStream.getTracks().forEach(t => t.stop()); document.getElementById('camera-container').style.display = "none"; } }
 
         function startCountdown() {
             document.getElementById('instructionSection').style.display = "none";
-            const cEl = document.getElementById('countdownOverlay'); cEl.style.display = "flex"; let count = 3; cEl.innerText = count;
-            let interval = setInterval(() => { count--; if(count > 0) cEl.innerText = count; else if(count === 0) cEl.innerText = "GO!"; else { clearInterval(interval); cEl.style.display = "none"; startExam(); } }, 1000);
+            const cEl = document.getElementById('countdownOverlay'); cEl.style.display = "flex"; let count = 3; 
+            document.getElementById('countText').innerText = count;
+            
+            let interval = setInterval(() => { 
+                count--; 
+                if(count > 0) document.getElementById('countText').innerText = count; 
+                else if(count === 0) document.getElementById('countText').innerText = "GO!"; 
+                else { clearInterval(interval); cEl.style.display = "none"; startExam(); } 
+            }, 1000);
         }
 
         function startExam() {
@@ -300,6 +380,7 @@
             
             examStartTime = Date.now(); 
             examEndTime = Date.now() + (10 * 60 * 1000); // 10 Minutes strict timer
+            persistData();
             
             buildGrid(); loadQuestion(0);
             timerInterval = setInterval(updateTimer, 1000);
@@ -312,12 +393,36 @@
             const examUI = document.getElementById('examSection');
             
             let isBlocked = false;
-            if (!track || track.muted || track.readyState === 'ended' || videoEl.paused) { isBlocked = true; } 
             
+            // Check if track is physically ended/muted
+            if (!track || track.muted || track.readyState === 'ended' || videoEl.paused) { 
+                isBlocked = true; 
+            } 
+            // Check canvas for obstruction
+            else if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                try {
+                    const canvas = document.getElementById('securityCanvas'), ctx = canvas.getContext('2d');
+                    ctx.drawImage(videoEl, 0, 0, 50, 50); let frame = ctx.getImageData(0, 0, 50, 50).data;
+                    let totalBright = 0, pixels = [];
+                    for(let i=0; i<frame.length; i+=4) { let brightness = (frame[i] + frame[i+1] + frame[i+2]) / 3; totalBright += brightness; pixels.push(brightness); }
+                    let avgBright = totalBright / 2500, diffSum = 0;
+                    for(let i=0; i<pixels.length; i++) diffSum += Math.abs(pixels[i] - avgBright);
+                    let variance = diffSum / 2500;
+                    
+                    if (avgBright < 15 || variance < 12) isBlocked = true;
+                } catch(e) {}
+            }
+
             if (isBlocked) {
-                tabSwitches++; document.getElementById('securityModal').style.display = 'flex'; examUI.style.filter = "blur(30px)"; 
+                if(document.getElementById('securityModal').style.display !== 'flex') {
+                    tabSwitches++; // Adds a warning to the final sheet
+                    persistData();
+                }
+                document.getElementById('securityModal').style.display = 'flex'; 
+                examUI.style.filter = "blur(30px)"; 
             } else {
-                document.getElementById('securityModal').style.display = 'none'; examUI.style.filter = "blur(0px)"; 
+                document.getElementById('securityModal').style.display = 'none'; 
+                examUI.style.filter = "blur(0px)"; 
             }
         }
 
@@ -353,6 +458,7 @@
             document.getElementById('btnReview').innerText = reviewState[index] ? "Unmark" : "Mark for Review";
             
             updateGridUI();
+            persistData();
         }
 
         function toggleReview() { reviewState[currentIndex] = !reviewState[currentIndex]; loadQuestion(currentIndex); }
@@ -394,7 +500,7 @@
         async function gradeExam() {
             examActive = false; stopCamera(); clearInterval(timerInterval); clearInterval(securityInterval);
             document.getElementById('submitModal').style.display = "none"; document.getElementById('examSection').style.display = "none";
-            document.getElementById('countdownOverlay').style.display = "flex"; document.getElementById('countdownOverlay').innerText = "Grading...";
+            document.getElementById('countdownOverlay').style.display = "flex"; document.getElementById('countText').innerText = "Grading...";
             
             let totalSecs = Math.floor((Date.now() - examStartTime) / 1000);
             if (totalSecs > 600) totalSecs = 600; // max 10 mins
@@ -406,17 +512,17 @@
                 if(answers[i] === questions[i].answer) score++;
             }
             
-            // Placement Logic
+            // UPDATED PLACEMENT LOGIC
             let allocatedLevel = "";
-            if(score <= 7) allocatedLevel = "Junior (Jr)";
-            else if(score <= 14) allocatedLevel = "Senior (Sr)";
+            if(score <= 10) allocatedLevel = "Junior (Jr)";
+            else if(score <= 17) allocatedLevel = "Senior (Sr)";
             else allocatedLevel = "Level 0";
             
             try {
                 // Post to Google Apps Script
                 await fetch(API_URL, { 
                     method: 'POST', body: JSON.stringify({ 
-                        action: "submitExam", name: studentData.name, mobile: studentData.mobile,
+                        action: "submitExam", name: studentData.name, studentClass: studentData.classStd, mobile: studentData.mobile,
                         email: studentData.email, score: score, level: allocatedLevel, 
                         apiKey: SECRETS, tabSwitches: tabSwitches, timeTaken: timeStr 
                     }) 
@@ -425,6 +531,7 @@
                 console.log("Error saving results to sheet.", e);
             }
             
+            localStorage.removeItem('abacusExamState'); 
             document.getElementById('countdownOverlay').style.display = "none"; 
             document.getElementById('resultSection').style.display = "block";
             
@@ -433,7 +540,7 @@
             document.getElementById('finalTimeDisplay').innerText = timeStr; 
         }
 
-        function clearAndHome() { stopCamera(); location.reload(); }
+        function clearAndHome() { stopCamera(); localStorage.removeItem('abacusExamState'); location.reload(); }
     </script>
 </body>
 </html>
