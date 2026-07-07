@@ -204,14 +204,14 @@
 
     <script>
         // ==========================================
-        // ADD YOUR GOOGLE APPS SCRIPT URL HERE
+        // HARDCODED GOOGLE APPS SCRIPT URL 
         // ==========================================
         const API_URL = "https://script.google.com/macros/s/AKfycbwCu2qXa5mfPBfPQaGO0jZtT-810OTu7hBjjvvDfKctL1Tic8hTfgIGe_WFY0yf0W18ww/exec"; 
         const SECRETS = "ANEYA_KATRAJ_2026_SECURE";
         
         let studentData = {}, currentIndex = 0, answers = {}, reviewState = {};
         let timerInterval, securityInterval, examEndTime = 0, examStartTime = 0;
-        let examActive = false, tabSwitches = 0, videoStream = null;
+        let examActive = false, hasRegistered = false, tabSwitches = 0, videoStream = null;
 
         const questions = [
             { q: "What is the missing number? 10, 11, __, 13, 14", options: ["15", "12", "9", "21"], answer: "12" },
@@ -236,12 +236,24 @@
             { q: "What is 11 + 11?", options: ["12", "22", "1111", "20"], answer: "22" }
         ];
 
-        // ANTI-REFRESH LOGIC
+        // UNIVERSAL ANTI-REFRESH LOGIC
         window.onload = function() {
             const savedState = localStorage.getItem('abacusExamState');
             if(savedState) {
                 const state = JSON.parse(savedState);
-                if(state.examActive) {
+                
+                // If they registered but haven't started the timer yet
+                if(state.hasRegistered && !state.examActive) {
+                    hasRegistered = true;
+                    studentData = state.studentData;
+                    
+                    document.getElementById('signupSection').style.display = "none";
+                    document.getElementById('welcomeName').innerText = studentData.name;
+                    document.getElementById('instructionSection').style.display = "block";
+                } 
+                // If they registered AND the exam timer was running
+                else if(state.examActive) {
+                    hasRegistered = true;
                     studentData = state.studentData;
                     answers = state.answers || {};
                     reviewState = state.reviewState || {};
@@ -268,11 +280,9 @@
         };
 
         function persistData() {
-            if(examActive) {
-                localStorage.setItem('abacusExamState', JSON.stringify({
-                    studentData, answers, reviewState, examEndTime, examStartTime, tabSwitches, examActive, currentIndex
-                }));
-            }
+            localStorage.setItem('abacusExamState', JSON.stringify({
+                hasRegistered, studentData, answers, reviewState, examEndTime, examStartTime, tabSwitches, examActive, currentIndex
+            }));
         }
 
         document.addEventListener("visibilitychange", () => {
@@ -315,12 +325,16 @@
                     return;
                 }
                 
+                // SAVE REGISTRATION STATE INSTANTLY
+                hasRegistered = true;
                 studentData = { name, classStd, mobile, email };
+                persistData(); 
+                
                 document.getElementById('signupSection').style.display = "none";
                 document.getElementById('welcomeName').innerText = name; 
                 document.getElementById('instructionSection').style.display = "block";
             } catch(e) { 
-                msgBox.style.color="red"; msgBox.innerText = "Connection Error! Ensure you added the API URL in the code."; 
+                msgBox.style.color="red"; msgBox.innerText = "Connection Error! Ensure you are connected to internet."; 
                 document.getElementById('btnSignup').disabled = false;
             }
         }
@@ -466,7 +480,7 @@
         function selectOption(val) {
             answers[currentIndex] = val; 
             
-            // NEW LOGIC: Remove 'mark for review' flag once answered
+            // Remove 'mark for review' flag once answered
             if(reviewState[currentIndex]) {
                 reviewState[currentIndex] = false;
             }
