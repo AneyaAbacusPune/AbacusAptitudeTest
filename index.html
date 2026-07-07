@@ -464,7 +464,14 @@
         function toggleReview() { reviewState[currentIndex] = !reviewState[currentIndex]; loadQuestion(currentIndex); }
 
         function selectOption(val) {
-            answers[currentIndex] = val; loadQuestion(currentIndex); 
+            answers[currentIndex] = val; 
+            
+            // NEW LOGIC: Remove 'mark for review' flag once answered
+            if(reviewState[currentIndex]) {
+                reviewState[currentIndex] = false;
+            }
+            
+            loadQuestion(currentIndex); 
             setTimeout(() => { 
                 if(currentIndex < questions.length - 1) loadQuestion(currentIndex + 1); else updateGridUI(); 
             }, 300); 
@@ -512,7 +519,7 @@
                 if(answers[i] === questions[i].answer) score++;
             }
             
-            // UPDATED PLACEMENT LOGIC
+            // PLACEMENT LOGIC CRITERIA
             let allocatedLevel = "";
             if(score <= 10) allocatedLevel = "Junior (Jr)";
             else if(score <= 17) allocatedLevel = "Senior (Sr)";
